@@ -6,4 +6,8 @@ def find_max(nums: list[int]) -> Optional[int]:
 
     If nums is empty, return None.
     """
-    pass
+    if len(nums) == 0: return None
+    max = nums[0]
+    for num in nums:
+        if num>max: max = num
+    return max
