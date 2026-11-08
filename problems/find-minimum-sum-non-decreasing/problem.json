@@ -1,0 +1,46 @@
+{
+  "title": "סכום מינימלי להפיכת מערך ללא יורד",
+  "description": "המשימה[מתוך השחזור]\n\nממשו findMinimumSum שמחזירה את סכום ה-x המינימלי שצריך כדי שהמערך power יהיה לא יורד, כשכל פעולה מוסיפה x לקטע רציף.\n\nקלט ופלט\nAWS provides scalable systems. A set of n servers is used to horizontally scale an application. Each server has a certain computational power, represented by an integer array power, where power[i] is the computational power of the i-th server.\n\nAllowed operation: choose any contiguous segment of servers and increase the computational power of every server in that segment by some positive integer x.\n\nThe goal is to make the computational powers of the servers non-decreasing while minimizing the total sum of all chosen x values.\n\nint findMinimumSum(int power[n])\nReturns the minimum possible sum of integers required to make the array non-decreasing.\n\nדוגמאות[מתוך השחזור]\n\nn = 5\npower = [3, 4, 1, 6, 2]\nOperation 1: add 3 units to the subarray from index 2 to 4\nOperation 2: add 4 units to the subarray from index 4 to 4\nFinal array: [3, 4, 4, 9, 9] (non-decreasing)\nⓘ הבהרות לניסוח ואילוצים[תוספת לתרגול]\n\n1 <= n <= 10^5\n,\n1 <= power[i] <= 10^9\n. התשובה עלולה לחרוג מ-32 ביט – החזירו\nlong\n. אם המערך כבר אינו יורד – מחזירים 0.",
+  "function_name": "find_minimum_sum",
+  "signature": "def find_minimum_sum(power: list[int]) -> int:",
+  "stub": "def find_minimum_sum(power: list[int]) -> int:\n    \"\"\"Return the minimum total sum of x values needed to make `power`\n    non-decreasing, where each operation adds a positive integer x to\n    every element of a contiguous segment.\"\"\"\n    pass\n",
+  "compare": "exact",
+  "examples": [
+    {
+      "args": {
+        "power": [
+          3,
+          4,
+          1,
+          6,
+          2
+        ]
+      },
+      "expected": 7,
+      "explanation": "יש שתי ירידות: 4→1 (פער 3) ו-6→2 (פער 4). מוסיפים 3 לקטע 2..4 ו-4 לקטע 4..4, ובסך הכול 7."
+    },
+    {
+      "args": {
+        "power": [
+          3,
+          1,
+          2
+        ]
+      },
+      "expected": 2,
+      "explanation": "הירידה היחידה היא 3→1 בפער 2. מוסיפים 2 לקטע 1..2 ומקבלים [3, 3, 4]."
+    }
+  ],
+  "constraints": [
+    "1 <= n <= 10^5",
+    "1 <= power[i] <= 10^9",
+    "התשובה עלולה לחרוג מ-32 ביט"
+  ],
+  "assumptions": [
+    "אם המערך כבר אינו יורד, התשובה היא 0.",
+    "אפשר לבצע כל מספר של פעולות, וקטעים יכולים לחפוף."
+  ],
+  "warnings": [],
+  "created": "2026-11-08T14:05:34",
+  "solved": false
+}
