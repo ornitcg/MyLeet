@@ -238,7 +238,7 @@ function initSplitters() {
       e.preventDefault();
       el.setPointerCapture(e.pointerId);
       el.classList.add("dragging");
-      document.body.classList.add("resizing", axisClass);
+      document.body.classList.add(axisClass);
     });
     el.addEventListener("pointermove", (e) => {
       if (!el.hasPointerCapture(e.pointerId)) return;
@@ -250,7 +250,7 @@ function initSplitters() {
       if (!el.hasPointerCapture(e.pointerId)) return;
       el.releasePointerCapture(e.pointerId);
       el.classList.remove("dragging");
-      document.body.classList.remove("resizing", axisClass);
+      document.body.classList.remove(axisClass);
       saveLayout(layout);
     };
     el.addEventListener("pointerup", end);
@@ -265,9 +265,9 @@ function initSplitters() {
     });
   };
 
-  makeDraggable($("splitCols"), (e) => setDescFromX(e.clientX), "col", "descW",
+  makeDraggable($("splitCols"), (e) => setDescFromX(e.clientX), "resizing-col", "descW",
     (k) => ({ ArrowLeft: 2, ArrowRight: -2 })[k] * (getComputedStyle(ws).direction === "rtl" ? 1 : -1) || 0);
-  makeDraggable($("splitRows"), (e) => setResultsFromY(e.clientY), "row", "resultsH",
+  makeDraggable($("splitRows"), (e) => setResultsFromY(e.clientY), "resizing-row", "resultsH",
     (k) => ({ ArrowUp: 3, ArrowDown: -3 })[k] || 0);
   apply();
 }
