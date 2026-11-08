@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MyLeet</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="#/" class="brand">My<span>Leet</span></a>
+    <select id="problemSelect" title="בחירת בעיה"></select>
+    <div class="spacer"></div>
+    <a href="#/new" class="btn btn-ghost">+ בעיה חדשה</a>
+  </header>
+
+  <!-- New problem -->
+  <main id="viewNew" class="view hidden">
+    <section class="card new-card">
+      <h1>בעיה חדשה</h1>
+      <p class="muted">כתבי את תיאור הבעיה. Claude יבחר שם לפונקציה, ייצור 2 דוגמאות, טסטים ופתרון ייחוס מוסתר שמוודא שהטסטים נכונים.</p>
+      <label for="newTitle">כותרת (לא חובה)</label>
+      <input id="newTitle" type="text" dir="auto" placeholder="למשל: חלוקת מערך לחלקים שווים">
+      <label for="newDesc">תיאור הבעיה</label>
+      <textarea id="newDesc" dir="auto" rows="14" placeholder="תארי את הבעיה: מה הקלט, מה צריך להחזיר, ומקרים מיוחדים אם יש..."></textarea>
+      <div class="row">
+        <button id="genBtn" class="btn btn-primary">צור בעיה וטסטים</button>
+        <span id="genStatus" class="muted"></span>
+      </div>
+      <pre id="genError" class="error-box hidden"></pre>
+    </section>
+    <section class="card list-card">
+      <h2>הבעיות שלי</h2>
+      <ul id="problemList" class="problem-list"></ul>
+    </section>
+  </main>
+
+  <!-- Problem workspace -->
+  <main id="viewProblem" class="view workspace hidden">
+    <section class="panel desc-panel">
+      <div class="panel-head">תיאור</div>
+      <div class="panel-body" id="descBody"></div>
+    </section>
+
+    <section class="panel code-panel">
+      <div class="panel-head">
+        <span class="lang">Python</span>
+        <span id="saveState" class="muted small"></span>
+        <div class="spacer"></div>
+        <button id="resetBtn" class="btn btn-ghost btn-sm" title="חזרה לשלד ההתחלתי">איפוס</button>
+      </div>
+      <div class="editor-wrap" dir="ltr"><textarea id="editor"></textarea></div>
+      <div class="results" id="results">
+        <div class="results-head">
+          <span>תוצאות</span>
+          <div class="spacer"></div>
+          <button id="runBtn" class="btn btn-sm">הרץ דוגמאות</button>
+          <button id="submitBtn" class="btn btn-primary btn-sm" title="Ctrl+Enter">שלח (כל הטסטים)</button>
+        </div>
+        <div class="results-body" id="resultsBody"><p class="muted">הריצי את הקוד כדי לראות תוצאות.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{
+  "title": "תת-המערך הזוגי הארוך ביותר",
+  "description": "בהינתן מערך של מספרים שלמים, החזירי את האורך של תת-המערך הרציף הארוך ביותר שבו כל האיברים זוגיים.",
+  "function_name": "longest_even_subarray",
+  "signature": "def longest_even_subarray(nums: list[int]) -> int:",
+  "stub": "def longest_even_subarray(nums: list[int]) -> int:\n    \"\"\"Return the length of the longest contiguous subarray in which every element is even.\"\"\"\n    pass\n",
+  "compare": "exact",
+  "examples": [
+    {
+      "args": {
+        "nums": [
+          1,
+          2,
+          4,
+          6,
+          3,
+          8
+        ]
+      },
+      "expected": 3,
+      "explanation": "תת-המערך [2, 4, 6] מכיל רק מספרים זוגיים והוא באורך 3, הארוך ביותר."
+    },
+    {
+      "args": {
+        "nums": [
+          1,
+          3,
+          5
+        ]
+      },
+      "expected": 0,
+      "explanation": "אין במערך אף מספר זוגי, ולכן האורך הוא 0."
+    }
+  ],
+  "constraints": [
+    "0 <= len(nums) <= 10^5",
+    "-10^9 <= nums[i] <= 10^9"
+  ],
+  "assumptions": [
+    "עבור מערך ריק או מערך ללא מספרים זוגיים מוחזר 0.",
+    "0 נחשב למספר זוגי, וגם מספרים שליליים זוגיים (כמו -4) נחשבים זוגיים."
+  ],
+  "warnings": [],
+  "created": "2026-11-08T08:18:14",
+  "solved": false
+}

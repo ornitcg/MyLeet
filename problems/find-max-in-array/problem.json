@@ -1,0 +1,47 @@
+{
+  "title": "מציאת מקסימום במערך",
+  "description": "בנה פונקציה אשר מקבלת כקלט: מערך מספרים לא ממוין\nוהיא מחזירה את הערך המקסימלי",
+  "function_name": "find_max",
+  "signature": "def find_max(nums: list[int]) -> int | None:",
+  "stub": "from typing import Optional\n\n\ndef find_max(nums: list[int]) -> Optional[int]:\n    \"\"\"Return the maximum value in the unsorted list nums.\n\n    If nums is empty, return None.\n    \"\"\"\n    pass\n",
+  "compare": "exact",
+  "examples": [
+    {
+      "args": {
+        "nums": [
+          3,
+          7,
+          1,
+          9,
+          4
+        ]
+      },
+      "expected": 9,
+      "explanation": "הערך הגדול ביותר במערך הוא 9."
+    },
+    {
+      "args": {
+        "nums": [
+          -5,
+          -2,
+          -8
+        ]
+      },
+      "expected": -2,
+      "explanation": "כל המספרים שליליים, והגדול מביניהם הוא -2."
+    }
+  ],
+  "constraints": [
+    "0 <= len(nums) <= 10^5",
+    "-10^9 <= nums[i] <= 10^9",
+    "If nums is empty, return None"
+  ],
+  "assumptions": [
+    "אם המערך ריק, הפונקציה מחזירה None (null).",
+    "המערך מכיל מספרים שלמים בלבד.",
+    "אם הערך המקסימלי מופיע כמה פעמים, מחזירים את הערך עצמו (לא את האינדקס)."
+  ],
+  "warnings": [],
+  "created": "2026-11-08T08:32:25",
+  "solved": false
+}

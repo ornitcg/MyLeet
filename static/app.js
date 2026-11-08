@@ -1,0 +1,225 @@
+"use strict";
+
+const $ = (id) => document.getElementById(id);
+const state = { problem: null, editor: null, saveTimer: null, results: null, selected: 0 };
+
+// ---------- helpers ----------
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+const fmt = (v) => JSON.stringify(v);
+const fmtArgs = (args) => Object.entries(args).map(([k, v]) => `${k} = ${fmt(v)}`).join(", ");
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+// ---------- editor ----------
+function initEditor() {
+  const ta = $("editor");
+  if (window.CodeMirror) {
+    const cm = CodeMirror.fromTextArea(ta, {
+      mode: "python", theme: "material-darker", lineNumbers: true, indentUnit: 4,
+      tabSize: 4, matchBrackets: true, autoCloseBrackets: true, direction: "ltr",
+      extraKeys: {
+        Tab: (c) => c.somethingSelected() ? c.indentSelection("add") : c.replaceSelection("    ", "end"),
+        "Shift-Tab": (c) => c.indentSelection("subtract"),
+        "Ctrl-Enter": () => run("all"),
+        "Ctrl-'": () => run("examples"),
+      },
+    });
+    cm.on("change", scheduleSave);
+    state.editor = { get: () => cm.getValue(), set: (v) => { cm.setValue(v); cm.clearHistory(); }, refresh: () => cm.refresh() };
+  } else {
+    // CDN unavailable: plain textarea fallback
+    ta.addEventListener("input", scheduleSave);
+    ta.addEventListener("keydown", (e) => {
+      if (e.key === "Tab") { e.preventDefault(); document.execCommand("insertText", false, "    "); }
+      if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); run("all"); }
+    });
+    state.editor = { get: () => ta.value, set: (v) => { ta.value = v; }, refresh: () => {} };
+  }
+}
+
+function scheduleSave() {
+  if (!state.problem) return;
+  $("saveState").textContent = "";
+  clearTimeout(state.saveTimer);
+  state.saveTimer = setTimeout(async () => {
+    try {
+      await api(`/api/problems/${state.problem.slug}/save`, { code: state.editor.get() });
+      $("saveState").textContent = "נשמר";
+    } catch { $("saveState").textContent = "שמירה נכשלה"; }
+  }, 800);
+}
+
+// ---------- problem list ----------
+async function loadList() {
+  const items = await api("/api/problems");
+  const sel = $("problemSelect");
+  sel.innerHTML = `<option value="">— בחרי בעיה —</option>` +
+    items.map((p) => `<option value="${esc(p.slug)}">${p.solved ? "✓ " : ""}${esc(p.title)}</option>`).join("");
+  if (state.problem) sel.value = state.problem.slug;
+  $("problemList").innerHTML = items.length
+    ? items.map((p) => `<li><a href="#/p/${esc(p.slug)}"><span class="check">${p.solved ? "✓" : ""}</span><span dir="auto">${esc(p.title)}</span></a></li>`).join("")
+    : `<li class="muted">עדיין אין בעיות. צרי את הראשונה למעלה.</li>`;
+  return items;
+}
+
+// ---------- new problem ----------
+async function generate() {
+  const description = $("newDesc").value.trim();
+  if (!description) { $("newDesc").focus(); return; }
+  const btn = $("genBtn");
+  btn.disabled = true;
+  $("genError").classList.add("hidden");
+  const started = Date.now();
+  const tick = () => { $("genStatus").innerHTML = `<span class="spinner"></span>Claude כותב דוגמאות, טסטים ופתרון ייחוס... (${Math.round((Date.now() - started) / 1000)} שניות)`; };
+  tick();
+  const timer = setInterval(tick, 1000);
+  try {
+    const { slug } = await api("/api/problems", { description, title: $("newTitle").value });
+    $("newDesc").value = ""; $("newTitle").value = "";
+    location.hash = `#/p/${slug}`;
+  } catch (e) {
+    $("genError").textContent = e.message;
+    $("genError").classList.remove("hidden");
+  } finally {
+    clearInterval(timer);
+    $("genStatus").textContent = "";
+    btn.disabled = false;
+  }
+}
+
+// ---------- problem view ----------
+function renderDescription(p) {
+  const examples = p.examples.map((e, i) => `
+    <div class="example">
+      <h3>דוגמה ${i + 1}:</h3>
+      <div class="example-box"><b>Input:</b> ${esc(fmtArgs(e.args))}
+<b>Output:</b> ${esc(fmt(e.expected))}${e.explanation ? `
+<b>Explanation:</b> <span class="expl" dir="auto">${esc(e.explanation)}</span>` : ""}</div>
+    </div>`).join("");
+  const constraints = p.constraints.length
+    ? `<h3>אילוצים:</h3><ul class="constraints">${p.constraints.map((c) => `<li><code>${esc(c)}</code></li>`).join("")}</ul>` : "";
+  const assumptions = p.assumptions.length
+    ? `<div class="note"><b>הנחות ש-Claude הניח (התיאור לא הגדיר אותן במפורש):</b><ul>${p.assumptions.map((a) => `<li dir="auto">${esc(a)}</li>`).join("")}</ul></div>` : "";
+  const warnings = (p.warnings || []).length
+    ? `<div class="note warn">${p.warnings.map(esc).join("<br>")}</div>` : "";
+  const orderNote = { unordered: "סדר האיברים בתשובה לא משנה.", unordered_nested: "סדר האיברים (גם ברשימות הפנימיות) לא משנה.", float: "התשובה נבדקת בדיוק של 10⁻⁶." }[p.compare];
+
+  $("descBody").innerHTML = `
+    <h1><span dir="auto">${esc(p.title)}</span>${p.solved ? `<span class="badge">נפתר ✓</span>` : ""}</h1>
+    <div class="description" dir="auto">${esc(p.description)}</div>
+    ${examples}
+    ${constraints}
+    ${orderNote ? `<p class="muted">${orderNote}</p>` : ""}
+    ${assumptions}
+    ${warnings}
+    <div class="meta muted">פונקציה: <code>${esc(p.signature)}</code> · ${p.test_count} טסטים</div>`;
+}
+
+async function openProblem(slug) {
+  showView("viewProblem");
+  try {
+    const p = await api(`/api/problems/${encodeURIComponent(slug)}`);
+    state.problem = p;
+    renderDescription(p);
+    state.editor.set(p.code);
+    state.editor.refresh();
+    $("saveState").textContent = "";
+    $("resultsBody").innerHTML = `<p class="muted">הריצי את הקוד כדי לראות תוצאות. <span dir="ltr">Ctrl+Enter</span> שולח את כל הטסטים.</p>`;
+    $("problemSelect").value = slug;
+  } catch (e) {
+    $("descBody").innerHTML = `<pre class="error-box">${esc(e.message)}</pre>`;
+  }
+}
+
+async function run(scope) {
+  if (!state.problem) return;
+  clearTimeout(state.saveTimer);
+  $("runBtn").disabled = $("submitBtn").disabled = true;
+  $("resultsBody").innerHTML = `<p><span class="spinner"></span>מריץ...</p>`;
+  try {
+    const res = await api(`/api/problems/${state.problem.slug}/run`, { code: state.editor.get(), scope });
+    state.results = res;
+    const firstBad = res.results.findIndex((r) => r.status !== "pass");
+    state.selected = firstBad === -1 ? 0 : firstBad;
+    renderResults();
+    $("saveState").textContent = "נשמר";
+    if (scope === "all" && res.passed === res.total && !state.problem.solved) {
+      state.problem.solved = true;
+      renderDescription(state.problem);
+      loadList();
+    }
+  } catch (e) {
+    $("resultsBody").innerHTML = `<pre class="error-box">${esc(e.message)}</pre>`;
+  } finally {
+    $("runBtn").disabled = $("submitBtn").disabled = false;
+  }
+}
+
+function renderResults() {
+  const res = state.results;
+  if (res.fatal) {
+    $("resultsBody").innerHTML = `<div class="verdict bad">Compile / Runtime Error</div><div class="detail"><pre class="bad">${esc(res.fatal)}</pre></div>`;
+    return;
+  }
+  const all = res.passed === res.total;
+  const statuses = res.results.map((r) => r.status);
+  const verdict = all ? (res.scope === "all" ? "Accepted" : "הדוגמאות עברו")
+    : statuses.includes("timeout") ? "Time Limit Exceeded"
+    : statuses.includes("error") ? "Runtime Error" : "Wrong Answer";
+  const chips = res.results.map((r, i) =>
+    `<button class="chip ${r.status} ${i === state.selected ? "active" : ""}" data-i="${i}">${esc(r.name)}</button>`).join("");
+
+  const r = res.results[state.selected];
+  let detail = `<div class="label">Input</div><pre>${esc(fmtArgs(r.args))}</pre>`;
+  if (r.status === "pass" || r.status === "fail") {
+    detail += `<div class="label">Output</div><pre class="${r.status === "pass" ? "good" : "bad"}">${esc(fmt(r.actual))}</pre>`;
+  }
+  detail += `<div class="label">Expected</div><pre>${esc(fmt(r.expected))}</pre>`;
+  if (r.error) detail += `<div class="label">Error</div><pre class="bad">${esc(r.error)}</pre>`;
+  if (r.stdout) detail += `<div class="label">Stdout</div><pre>${esc(r.stdout)}</pre>`;
+  if (r.status === "skipped") detail += `<p class="muted">הטסט לא רץ כי טסט קודם חרג מזמן הריצה.</p>`;
+  if (r.ms !== undefined) detail += `<div class="label">${r.ms} ms</div>`;
+
+  $("resultsBody").innerHTML = `
+    <div class="verdict ${all ? "ok" : "bad"}">${verdict} <span class="muted small">${res.passed} / ${res.total} עברו</span></div>
+    <div class="chips">${chips}</div>
+    <div class="detail">${detail}</div>`;
+  $("resultsBody").querySelectorAll(".chip").forEach((c) =>
+    c.addEventListener("click", () => { state.selected = +c.dataset.i; renderResults(); }));
+}
+
+// ---------- routing ----------
+function showView(id) {
+  for (const v of ["viewNew", "viewProblem"]) $(v).classList.toggle("hidden", v !== id);
+}
+
+async function route() {
+  const m = location.hash.match(/^#\/p\/([a-z0-9-]+)/);
+  if (m) return openProblem(m[1]);
+  state.problem = null;
+  $("problemSelect").value = "";
+  showView("viewNew");
+  $("newDesc").focus();
+}
+
+window.addEventListener("hashchange", route);
+document.addEventListener("DOMContentLoaded", async () => {
+  initEditor();
+  $("genBtn").addEventListener("click", generate);
+  $("runBtn").addEventListener("click", () => run("examples"));
+  $("submitBtn").addEventListener("click", () => run("all"));
+  $("resetBtn").addEventListener("click", () => {
+    if (state.problem && confirm("לאפס את הקוד לשלד ההתחלתי? הקוד הנוכחי יימחק.")) state.editor.set(state.problem.stub);
+  });
+  $("problemSelect").addEventListener("change", (e) => { location.hash = e.target.value ? `#/p/${e.target.value}` : "#/new"; });
+  await loadList();
+  route();
+});
