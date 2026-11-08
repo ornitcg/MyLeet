@@ -44,7 +44,10 @@
       <div class="panel-body" id="descBody"></div>
     </section>
 
-    <section class="panel code-panel">
+    <div class="splitter splitter-v" id="splitCols" role="separator" aria-orientation="vertical"
+         tabindex="0" title="גררי כדי לשנות רוחב · לחיצה כפולה לאיפוס"></div>
+
+    <section class="panel code-panel" id="codePanel">
       <div class="panel-head">
         <span class="lang">Python</span>
         <span id="saveState" class="muted small"></span>
@@ -52,6 +55,8 @@
         <button id="resetBtn" class="btn btn-ghost btn-sm" title="חזרה לשלד ההתחלתי">איפוס</button>
       </div>
       <div class="editor-wrap" dir="ltr"><textarea id="editor"></textarea></div>
+      <div class="splitter splitter-h" id="splitRows" role="separator" aria-orientation="horizontal"
+           tabindex="0" title="גררי כדי לשנות גובה · לחיצה כפולה לאיפוס"></div>
       <div class="results" id="results">
         <div class="results-head">
           <span>תוצאות</span>

@@ -196,6 +196,82 @@ function renderResults() {
     c.addEventListener("click", () => { state.selected = +c.dataset.i; renderResults(); }));
 }
 
+// ---------- resizable panels ----------
+const LAYOUT_KEY = "myleet.layout";
+const LAYOUT_DEFAULT = { descW: 42, resultsH: 38 }; // percentages
+
+function loadLayout() {
+  try { return { ...LAYOUT_DEFAULT, ...JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") }; }
+  catch { return { ...LAYOUT_DEFAULT }; }
+}
+function saveLayout(layout) {
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch { /* storage unavailable */ }
+}
+
+function initSplitters() {
+  const layout = loadLayout();
+  const ws = $("viewProblem"), code = $("codePanel");
+  const apply = () => {
+    ws.style.setProperty("--desc-w", `${layout.descW}%`);
+    code.style.setProperty("--results-h", `${layout.resultsH}%`);
+    state.editor && state.editor.refresh();
+  };
+  const clampPct = (px, total, minPx, maxPx) => (Math.min(Math.max(px, minPx), Math.max(minPx, total - maxPx)) / total) * 100;
+
+  // Column splitter: description width. In RTL the description is on the right side.
+  const setDescFromX = (x) => {
+    const r = ws.getBoundingClientRect();
+    const rtl = getComputedStyle(ws).direction === "rtl";
+    const px = rtl ? r.right - x : x - r.left;
+    layout.descW = clampPct(px, r.width, 220, 340);
+  };
+  // Row splitter: results height, measured from the bottom of the code panel.
+  const setResultsFromY = (y) => {
+    const r = code.getBoundingClientRect();
+    layout.resultsH = clampPct(r.bottom - y, r.height, 70, 150);
+  };
+
+  const makeDraggable = (el, onMove, axisClass, key, keyStep) => {
+    let frame = 0;
+    el.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      el.classList.add("dragging");
+      document.body.classList.add("resizing", axisClass);
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (!el.hasPointerCapture(e.pointerId)) return;
+      onMove(e);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(apply);
+    });
+    const end = (e) => {
+      if (!el.hasPointerCapture(e.pointerId)) return;
+      el.releasePointerCapture(e.pointerId);
+      el.classList.remove("dragging");
+      document.body.classList.remove("resizing", axisClass);
+      saveLayout(layout);
+    };
+    el.addEventListener("pointerup", end);
+    el.addEventListener("pointercancel", end);
+    el.addEventListener("dblclick", () => { layout[key] = LAYOUT_DEFAULT[key]; apply(); saveLayout(layout); });
+    el.addEventListener("keydown", (e) => {
+      const d = keyStep(e.key);
+      if (!d) return;
+      e.preventDefault();
+      layout[key] = Math.min(80, Math.max(15, layout[key] + d));
+      apply(); saveLayout(layout);
+    });
+  };
+
+  makeDraggable($("splitCols"), (e) => setDescFromX(e.clientX), "col", "descW",
+    (k) => ({ ArrowLeft: 2, ArrowRight: -2 })[k] * (getComputedStyle(ws).direction === "rtl" ? 1 : -1) || 0);
+  makeDraggable($("splitRows"), (e) => setResultsFromY(e.clientY), "row", "resultsH",
+    (k) => ({ ArrowUp: 3, ArrowDown: -3 })[k] || 0);
+  apply();
+}
+
 // ---------- routing ----------
 function showView(id) {
   for (const v of ["viewNew", "viewProblem"]) $(v).classList.toggle("hidden", v !== id);
@@ -213,6 +289,7 @@ async function route() {
 window.addEventListener("hashchange", route);
 document.addEventListener("DOMContentLoaded", async () => {
   initEditor();
+  initSplitters();
   $("genBtn").addEventListener("click", generate);
   $("runBtn").addEventListener("click", () => run("examples"));
   $("submitBtn").addEventListener("click", () => run("all"));
