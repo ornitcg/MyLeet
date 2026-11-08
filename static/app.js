@@ -112,8 +112,8 @@ function renderDescription(p) {
     ? `<div class="note warn">${p.warnings.map(esc).join("<br>")}</div>` : "";
   const orderNote = { unordered: "סדר האיברים בתשובה לא משנה.", unordered_nested: "סדר האיברים (גם ברשימות הפנימיות) לא משנה.", float: "התשובה נבדקת בדיוק של 10⁻⁶." }[p.compare];
 
+  renderTitle(p);
   $("descBody").innerHTML = `
-    <h1><span dir="auto">${esc(p.title)}</span>${p.solved ? `<span class="badge">נפתר ✓</span>` : ""}</h1>
     <div class="description" dir="auto">${esc(p.description)}</div>
     ${examples}
     ${constraints}
@@ -202,6 +202,41 @@ function renderResults() {
     <div class="detail">${detail}</div>`;
   $("resultsBody").querySelectorAll(".chip").forEach((c) =>
     c.addEventListener("click", () => { state.selected = +c.dataset.i; renderResults(); }));
+}
+
+// ---------- problem title ----------
+function renderTitle(p) {
+  $("problemTitle").textContent = p.title;
+  $("problemTitle").title = p.title;
+  $("solvedBadge").classList.toggle("hidden", !p.solved);
+  document.title = `${p.title} · MyLeet`;
+  showTitleForm(false);
+}
+
+function showTitleForm(show) {
+  $("titleForm").classList.toggle("hidden", !show);
+  for (const id of ["problemTitle", "solvedBadge", "editTitleBtn"]) {
+    $(id).classList.toggle("hidden", show || (id === "solvedBadge" && !state.problem?.solved));
+  }
+  if (show) {
+    $("titleInput").value = state.problem.title;
+    $("titleInput").focus();
+    $("titleInput").select();
+  }
+}
+
+async function saveTitle(e) {
+  e.preventDefault();
+  const title = $("titleInput").value.trim();
+  if (!title || title === state.problem.title) return showTitleForm(false);
+  try {
+    await api(`/api/problems/${state.problem.slug}/title`, { title });
+    state.problem.title = title;
+    renderTitle(state.problem);
+    loadList();
+  } catch (err) {
+    alert(`שינוי השם נכשל: ${err.message}`);
+  }
 }
 
 // ---------- saved solutions ----------
@@ -375,6 +410,7 @@ async function route() {
   const m = location.hash.match(/^#\/p\/([a-z0-9-]+)/);
   if (m) return openProblem(m[1]);
   state.problem = null;
+  document.title = "MyLeet";
   $("problemSelect").value = "";
   showView("viewNew");
   $("newDesc").focus();
@@ -398,6 +434,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (head) toggleSubmission(head.dataset.id);
   });
   $("saveSubBtn").addEventListener("click", openSaveDialog);
+  $("editTitleBtn").addEventListener("click", () => showTitleForm(true));
+  $("problemTitle").addEventListener("dblclick", () => showTitleForm(true));
+  $("titleForm").addEventListener("submit", saveTitle);
+  $("cancelTitleBtn").addEventListener("click", () => showTitleForm(false));
+  $("titleInput").addEventListener("keydown", (e) => { if (e.key === "Escape") showTitleForm(false); });
   $("saveDialog").addEventListener("close", () => {
     if ($("saveDialog").returnValue === "save") saveSubmission();
     $("saveDialog").returnValue = "";

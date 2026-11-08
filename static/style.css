@@ -136,6 +136,16 @@ body.resizing-row { cursor: row-resize; }
 .chip.skipped::before { content: "● "; color: var(--muted); }
 .chip.active { outline: 1px solid var(--accent); }
 .detail { direction: ltr; text-align: left; }
+/* Problem title, always visible above the tabs */
+.title-bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+  border-bottom: 1px solid var(--border); min-height: 52px; }
+.title-bar h1 { font-size: 19px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icon-btn { background: none; border: 1px solid transparent; color: var(--muted); border-radius: 6px;
+  cursor: pointer; font-size: 16px; padding: 0 6px; line-height: 1.6; }
+.icon-btn:hover { color: var(--text); border-color: var(--border); }
+.title-form { display: flex; align-items: center; gap: 8px; flex: 1; }
+.title-form input { font-size: 16px; font-weight: 600; }
+
 /* Tabs in the description panel */
 .panel-head.tabs { padding: 0 6px; gap: 0; }
 .tab { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted);

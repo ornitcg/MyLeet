@@ -40,6 +40,16 @@
   <!-- Problem workspace -->
   <main id="viewProblem" class="view workspace hidden">
     <section class="panel desc-panel">
+      <div class="title-bar">
+        <h1 id="problemTitle" dir="auto"></h1>
+        <span id="solvedBadge" class="badge hidden">נפתר ✓</span>
+        <button id="editTitleBtn" class="icon-btn" title="שינוי שם הבעיה" aria-label="שינוי שם הבעיה">✎</button>
+        <form id="titleForm" class="title-form hidden">
+          <input id="titleInput" type="text" dir="auto" maxlength="120" required>
+          <button class="btn btn-primary btn-sm">שמור</button>
+          <button type="button" id="cancelTitleBtn" class="btn btn-ghost btn-sm">ביטול</button>
+        </form>
+      </div>
       <div class="panel-head tabs">
         <button class="tab active" data-tab="desc">תיאור</button>
         <button class="tab" data-tab="subs">הפתרונות שלי <span id="subsCount" class="count"></span></button>

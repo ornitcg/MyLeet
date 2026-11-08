@@ -72,6 +72,8 @@ class Handler(BaseHTTPRequestHandler):
                 if action == "save":
                     core.save_code(slug, body["code"])
                     return self._send(200, {"ok": True})
+                if action == "title":
+                    return self._send(200, {"title": core.rename_problem(slug, body.get("title", ""))})
                 if action == "submissions":
                     entry = core.add_submission(slug, body["code"], "manual", note=body.get("note", ""))
                     return self._send(200, entry)

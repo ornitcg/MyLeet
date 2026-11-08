@@ -52,6 +52,18 @@ def load_problem(slug: str):
     return p
 
 
+def rename_problem(slug: str, title: str):
+    """Changes the display title only; the folder name (slug) stays the same."""
+    title = " ".join(title.split())[:120]
+    if not title:
+        raise ValueError("title is empty")
+    meta = problem_dir(slug) / "problem.json"
+    p = _read_json(meta)
+    p["title"] = title
+    _write_json(meta, p)
+    return title
+
+
 def save_code(slug: str, code: str):
     (problem_dir(slug) / "solution.py").write_text(code, encoding="utf-8")
 
