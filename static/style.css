@@ -136,6 +136,36 @@ body.resizing-row { cursor: row-resize; }
 .chip.skipped::before { content: "● "; color: var(--muted); }
 .chip.active { outline: 1px solid var(--accent); }
 .detail { direction: ltr; text-align: left; }
+/* Tabs in the description panel */
+.panel-head.tabs { padding: 0 6px; gap: 0; }
+.tab { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted);
+  font: inherit; font-weight: 600; padding: 8px 12px; cursor: pointer; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.count { font-size: 12px; color: var(--muted); font-weight: 400; }
+
+/* Saved solutions list */
+.subs-list { list-style: none; margin: 0; padding: 0; }
+.sub { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+.sub-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px;
+  background: var(--panel-2); border: 0; color: var(--text); font: inherit; cursor: pointer; text-align: start; }
+.sub-head:hover { filter: brightness(1.15); }
+.sub-time { font-size: 13px; color: var(--muted); direction: ltr; }
+.sub-note { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
+.tag.accepted { background: rgba(44,187,93,.15); color: var(--green); }
+.tag.manual { background: rgba(255,255,255,.08); color: var(--muted); }
+.sub-body { padding: 10px 12px; }
+.sub-body pre { margin: 0 0 10px; background: #212121; padding: 10px 12px; border-radius: 6px; direction: ltr;
+  text-align: left; white-space: pre; overflow: auto; max-height: 320px; font-size: 13px; }
+.flash { color: var(--green); font-size: 13px; margin-top: 6px; }
+
+.dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 10px;
+  padding: 18px 22px; width: min(440px, 90vw); }
+.dialog::backdrop { background: rgba(0,0,0,.55); }
+.dialog h3 { margin: 0 0 6px; }
+.dialog label { display: block; margin: 10px 0 4px; }
+
 .detail .label { color: var(--muted); font-size: 12px; margin: 8px 0 2px; }
 .detail pre { margin: 0; background: var(--panel-2); padding: 8px 10px; border-radius: 6px;
   white-space: pre-wrap; word-break: break-all; max-height: 180px; overflow: auto; font-size: 13px; }

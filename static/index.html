@@ -40,8 +40,12 @@
   <!-- Problem workspace -->
   <main id="viewProblem" class="view workspace hidden">
     <section class="panel desc-panel">
-      <div class="panel-head">תיאור</div>
+      <div class="panel-head tabs">
+        <button class="tab active" data-tab="desc">תיאור</button>
+        <button class="tab" data-tab="subs">הפתרונות שלי <span id="subsCount" class="count"></span></button>
+      </div>
       <div class="panel-body" id="descBody"></div>
+      <div class="panel-body hidden" id="subsBody"></div>
     </section>
 
     <div class="splitter splitter-v" id="splitCols" role="separator" aria-orientation="vertical"
@@ -52,6 +56,7 @@
         <span class="lang">Python</span>
         <span id="saveState" class="muted small"></span>
         <div class="spacer"></div>
+        <button id="saveSubBtn" class="btn btn-sm" title="Ctrl+S">שמור פתרון</button>
         <button id="resetBtn" class="btn btn-ghost btn-sm" title="חזרה לשלד ההתחלתי">איפוס</button>
       </div>
       <div class="editor-wrap" dir="ltr"><textarea id="editor"></textarea></div>
@@ -68,6 +73,18 @@
       </div>
     </section>
   </main>
+
+  <dialog id="saveDialog" class="dialog">
+    <form method="dialog">
+      <h3>שמירת פתרון</h3>
+      <label for="saveNote">הערה (לא חובה)</label>
+      <input id="saveNote" type="text" dir="auto" maxlength="200" placeholder="למשל: פתרון ראשון, או פתרון בזמן ליניארי">
+      <div class="row">
+        <button value="save" class="btn btn-primary">שמור</button>
+        <button value="cancel" class="btn btn-ghost" formnovalidate>ביטול</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>

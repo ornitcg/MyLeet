@@ -42,7 +42,13 @@ class Handler(BaseHTTPRequestHandler):
             if parts[:2] == ["api", "problems"]:
                 if len(parts) == 2:
                     return self._send(200, core.list_problems())
-                return self._send(200, core.load_problem(parts[2]))
+                if len(parts) == 3:
+                    return self._send(200, core.load_problem(parts[2]))
+                if len(parts) == 4 and parts[3] == "submissions":
+                    return self._send(200, core.list_submissions(parts[2]))
+                if len(parts) == 5 and parts[3] == "submissions":
+                    return self._send(200, core.get_submission(parts[2], parts[4]))
+                return self._send(404, {"error": "not found"})
             rel = "index.html" if not parts else "/".join(parts[1:]) if parts[0] == "static" else None
             path = (STATIC / rel).resolve() if rel else None
             if path and path.is_file() and STATIC in path.parents:
@@ -66,6 +72,9 @@ class Handler(BaseHTTPRequestHandler):
                 if action == "save":
                     core.save_code(slug, body["code"])
                     return self._send(200, {"ok": True})
+                if action == "submissions":
+                    entry = core.add_submission(slug, body["code"], "manual", note=body.get("note", ""))
+                    return self._send(200, entry)
                 if action == "run":
                     scope = "examples" if body.get("scope") == "examples" else "all"
                     return self._send(200, core.run_user_code(slug, body["code"], scope))

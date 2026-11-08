@@ -4,6 +4,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -46,6 +47,7 @@ def load_problem(slug: str):
     sol = d / "solution.py"
     p["code"] = sol.read_text(encoding="utf-8") if sol.exists() else p["stub"]
     p["test_count"] = len(_read_json(d / "tests.json"))
+    p["submissions"] = list_submissions(slug)
     p["slug"] = slug
     return p
 
@@ -134,6 +136,57 @@ def run_tests(solution_path: Path, tests: list, function_name: str, compare: str
     return {"fatal": fatal, "results": results}
 
 
+# ---------- saved solutions (submission history) ----------
+SUBMISSION_ID_RE = re.compile(r"^\d{8}-\d{6}(-\d+)?$")
+
+
+def _submissions_dir(slug: str) -> Path:
+    return problem_dir(slug) / "submissions"
+
+
+def list_submissions(slug: str):
+    index = _submissions_dir(slug) / "index.json"
+    items = _read_json(index) if index.exists() else []
+    return sorted(items, key=lambda s: s["id"], reverse=True)
+
+
+def get_submission(slug: str, sub_id: str):
+    if not SUBMISSION_ID_RE.match(sub_id):
+        raise ValueError("invalid submission id")
+    entry = next((s for s in list_submissions(slug) if s["id"] == sub_id), None)
+    if entry is None:
+        raise FileNotFoundError(sub_id)
+    code = (_submissions_dir(slug) / f"{sub_id}.py").read_text(encoding="utf-8")
+    return {**entry, "code": code}
+
+
+def add_submission(slug: str, code: str, kind: str, note: str = "", passed=None, total=None):
+    """kind: "manual" (saved by the user) or "accepted" (all tests passed)."""
+    if not problem_dir(slug).exists():
+        raise FileNotFoundError(slug)
+    d = _submissions_dir(slug)
+    d.mkdir(exist_ok=True)
+    now = datetime.now()
+    base = now.strftime("%Y%m%d-%H%M%S")
+    sub_id, n = base, 2
+    while (d / f"{sub_id}.py").exists():
+        sub_id, n = f"{base}-{n}", n + 1
+    (d / f"{sub_id}.py").write_text(code, encoding="utf-8")
+    entry = {"id": sub_id, "created": now.isoformat(timespec="seconds"), "kind": kind,
+             "note": note.strip()[:200], "passed": passed, "total": total}
+    items = list_submissions(slug)
+    items.append(entry)
+    _write_json(d / "index.json", sorted(items, key=lambda s: s["id"]))
+    return entry
+
+
+def _latest_accepted_code(slug: str):
+    for s in list_submissions(slug):
+        if s["kind"] == "accepted":
+            return (_submissions_dir(slug) / f"{s['id']}.py").read_text(encoding="utf-8")
+    return None
+
+
 def run_user_code(slug: str, code: str, scope: str):
     d = problem_dir(slug)
     save_code(slug, code)
@@ -143,8 +196,12 @@ def run_user_code(slug: str, code: str, scope: str):
         tests = tests[: len(p["examples"])]
     res = run_tests(d / "solution.py", tests, p["function_name"], p["compare"])
     passed = sum(r["status"] == "pass" for r in res["results"])
-    res.update(passed=passed, total=len(tests), scope=scope)
-    if scope == "all" and passed == len(tests) and not p.get("solved"):
-        p["solved"] = True
-        _write_json(d / "problem.json", p)
+    res.update(passed=passed, total=len(tests), scope=scope, saved_submission=None)
+    if scope == "all" and passed == len(tests):
+        if not p.get("solved"):
+            p["solved"] = True
+            _write_json(d / "problem.json", p)
+        # Keep every distinct accepted solution; skip if identical to the latest accepted one.
+        if _latest_accepted_code(slug) != code:
+            res["saved_submission"] = add_submission(slug, code, "accepted", passed=passed, total=len(tests))
     return res

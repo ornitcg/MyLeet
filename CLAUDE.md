@@ -13,7 +13,8 @@ the user solves it in the browser editor and runs the tests.
 - Optional env var `MYLEET_MODEL` picks the model used for generation.
 
 ## Layout
-- `server.py` — stdlib HTTP server + JSON API (`/api/problems`, `/api/problems/<slug>/run|save`)
+- `server.py` — stdlib HTTP server + JSON API (`/api/problems`, `/api/problems/<slug>/run|save`,
+  `/api/problems/<slug>/submissions[/<id>]`)
 - `myleet/generator.py` — prompt + JSON schema for `claude -p --json-schema`; validates every
   test against the reference solution and retries once with the mismatches as feedback.
   Runs Claude in a temp dir so this file's rules don't apply to reference generation.
@@ -26,7 +27,9 @@ the user solves it in the browser editor and runs the tests.
     examples, constraints, assumptions, solved flag
   - `tests.json` — `[{name, args: {param: value}, expected}]`; first 2 are the examples
   - `reference.py` — hidden reference solution
-  - `solution.py` — THE USER'S CODE
+  - `solution.py` — THE USER'S CODE (autosaved from the editor)
+  - `submissions/` — saved solutions history: `<YYYYMMDD-HHMMSS>.py` + `index.json`
+    (`kind`: `manual` = "שמור פתרון" / Ctrl+S, `accepted` = auto-saved when all tests pass)
 
 ## Conventions
 - A problem = one top-level Python function; args/results are JSON values
@@ -35,7 +38,7 @@ the user solves it in the browser editor and runs the tests.
 
 ## Rules for Claude
 - NEVER write, fix, or hint at the user's solution in `problems/*/solution.py`
-  unless explicitly asked. The point is that the user solves it alone.
+  or `problems/*/submissions/` unless explicitly asked. The point is that the user solves it alone.
 - Don't open or quote `problems/*/reference.py` unless asked.
 - When asked for help on a problem: gradual hints (direction → approach → pseudo-code),
   never full code unless asked.

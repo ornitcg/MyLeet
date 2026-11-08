@@ -128,7 +128,10 @@ async function openProblem(slug) {
   try {
     const p = await api(`/api/problems/${encodeURIComponent(slug)}`);
     state.problem = p;
+    state.openSub = null;
     renderDescription(p);
+    setTab("desc");
+    renderSubmissions();
     state.editor.set(p.code);
     state.editor.refresh();
     $("saveState").textContent = "";
@@ -155,6 +158,11 @@ async function run(scope) {
       state.problem.solved = true;
       renderDescription(state.problem);
       loadList();
+    }
+    if (res.saved_submission) {
+      addSubmissionToState(res.saved_submission);
+      $("resultsBody").insertAdjacentHTML("afterbegin",
+        `<div class="flash">✓ הפתרון נשמר בלשונית "הפתרונות שלי"</div>`);
     }
   } catch (e) {
     $("resultsBody").innerHTML = `<pre class="error-box">${esc(e.message)}</pre>`;
@@ -194,6 +202,92 @@ function renderResults() {
     <div class="detail">${detail}</div>`;
   $("resultsBody").querySelectorAll(".chip").forEach((c) =>
     c.addEventListener("click", () => { state.selected = +c.dataset.i; renderResults(); }));
+}
+
+// ---------- saved solutions ----------
+const subsCache = {}; // "slug/id" -> code
+
+function setTab(name) {
+  document.querySelectorAll(".desc-panel .tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+  $("descBody").classList.toggle("hidden", name !== "desc");
+  $("subsBody").classList.toggle("hidden", name !== "subs");
+  if (name === "subs") renderSubmissions();
+}
+
+function addSubmissionToState(entry) {
+  state.problem.submissions.unshift(entry);
+  state.openSub = null;
+  renderSubmissions();
+}
+
+function fmtTime(iso) {
+  const d = new Date(iso);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function renderSubmissions() {
+  const subs = state.problem ? state.problem.submissions : [];
+  $("subsCount").textContent = subs.length ? `(${subs.length})` : "";
+  if (!subs.length) {
+    $("subsBody").innerHTML = `<p class="muted">עדיין אין פתרונות שמורים.</p>
+      <p class="muted">לחיצה על "שמור פתרון" (או <span dir="ltr">Ctrl+S</span>) שומרת עותק של הקוד.
+      גם כל הגשה שעוברת את כל הטסטים נשמרת כאן אוטומטית.</p>`;
+    return;
+  }
+  $("subsBody").innerHTML = `<ul class="subs-list">${subs.map((s) => {
+    const tag = s.kind === "accepted"
+      ? `<span class="tag accepted">עבר ✓ ${s.passed}/${s.total}</span>`
+      : `<span class="tag manual">שמירה ידנית</span>`;
+    const open = state.openSub === s.id;
+    const code = subsCache[`${state.problem.slug}/${s.id}`];
+    const body = open ? `<div class="sub-body">${code === undefined ? `<p><span class="spinner"></span>טוען...</p>`
+      : `<pre>${esc(code)}</pre><button class="btn btn-sm" data-load="${s.id}">טען לעורך</button>`}</div>` : "";
+    return `<li class="sub"><button class="sub-head" data-id="${s.id}">${tag}
+      <span class="sub-note" dir="auto">${esc(s.note || "")}</span>
+      <span class="sub-time">${fmtTime(s.created)}</span></button>${body}</li>`;
+  }).join("")}</ul>`;
+}
+
+async function toggleSubmission(id) {
+  state.openSub = state.openSub === id ? null : id;
+  renderSubmissions();
+  const key = `${state.problem.slug}/${id}`;
+  if (state.openSub === id && subsCache[key] === undefined) {
+    try {
+      subsCache[key] = (await api(`/api/problems/${state.problem.slug}/submissions/${id}`)).code;
+    } catch (e) {
+      subsCache[key] = `# שגיאה בטעינה: ${e.message}`;
+    }
+    renderSubmissions();
+  }
+}
+
+function loadSubmission(id) {
+  const code = subsCache[`${state.problem.slug}/${id}`];
+  if (code === undefined) return;
+  if (!confirm("לטעון את הפתרון הזה לעורך? הקוד שבעורך כרגע יוחלף.\nכדאי לשמור אותו קודם אם הוא חשוב לך.")) return;
+  state.editor.set(code);
+  scheduleSave();
+}
+
+function openSaveDialog() {
+  if (!state.problem) return;
+  $("saveNote").value = "";
+  $("saveDialog").showModal();
+  $("saveNote").focus();
+}
+
+async function saveSubmission() {
+  const note = $("saveNote").value;
+  try {
+    const entry = await api(`/api/problems/${state.problem.slug}/submissions`, { code: state.editor.get(), note });
+    subsCache[`${state.problem.slug}/${entry.id}`] = state.editor.get();
+    addSubmissionToState(entry);
+    $("saveState").textContent = "הפתרון נשמר ✓";
+  } catch (e) {
+    alert(`השמירה נכשלה: ${e.message}`);
+  }
 }
 
 // ---------- resizable panels ----------
@@ -295,6 +389,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("submitBtn").addEventListener("click", () => run("all"));
   $("resetBtn").addEventListener("click", () => {
     if (state.problem && confirm("לאפס את הקוד לשלד ההתחלתי? הקוד הנוכחי יימחק.")) state.editor.set(state.problem.stub);
+  });
+  document.querySelectorAll(".desc-panel .tab").forEach((t) => t.addEventListener("click", () => setTab(t.dataset.tab)));
+  $("subsBody").addEventListener("click", (e) => {
+    const load = e.target.closest("[data-load]");
+    if (load) return loadSubmission(load.dataset.load);
+    const head = e.target.closest(".sub-head");
+    if (head) toggleSubmission(head.dataset.id);
+  });
+  $("saveSubBtn").addEventListener("click", openSaveDialog);
+  $("saveDialog").addEventListener("close", () => {
+    if ($("saveDialog").returnValue === "save") saveSubmission();
+    $("saveDialog").returnValue = "";
+  });
+  document.addEventListener("keydown", (e) => {
+    // e.code is the physical key, so this also works with a Hebrew keyboard layout.
+    if ((e.ctrlKey || e.metaKey) && (e.code === "KeyS" || e.key.toLowerCase() === "s")) {
+      e.preventDefault(); // never trigger the browser's "save page" dialog
+      if (state.problem && !$("saveDialog").open) openSaveDialog();
+    }
   });
   $("problemSelect").addEventListener("change", (e) => { location.hash = e.target.value ? `#/p/${e.target.value}` : "#/new"; });
   await loadList();
