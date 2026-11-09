@@ -1,6 +1,7 @@
 """MyLeet local server. Run:  python server.py   then open http://127.0.0.1:8765"""
 import json
 import mimetypes
+import os
 import sys
 import threading
 import traceback
@@ -8,9 +9,9 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from myleet import core, generator
+from myleet import core, generator, reviewer
 
-HOST, PORT = "127.0.0.1", 8765
+HOST, PORT = "127.0.0.1", int(os.environ.get("MYLEET_PORT", "8765"))
 STATIC = Path(__file__).resolve().parent / "static"
 CTYPES = {".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml"}
 
@@ -67,6 +68,9 @@ class Handler(BaseHTTPRequestHandler):
             if parts == ["api", "problems"]:
                 slug = generator.generate(body.get("description", ""), body.get("title", ""))
                 return self._send(200, {"slug": slug})
+            if len(parts) == 6 and parts[:2] == ["api", "problems"] and parts[3] == "submissions" \
+                    and parts[5] == "review":
+                return self._send(200, reviewer.review_submission(parts[2], parts[4]))
             if len(parts) == 4 and parts[:2] == ["api", "problems"]:
                 slug, action = parts[2], parts[3]
                 if action == "save":

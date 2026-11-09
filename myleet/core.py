@@ -192,11 +192,21 @@ def add_submission(slug: str, code: str, kind: str, note: str = "", passed=None,
     return entry
 
 
-def _latest_accepted_code(slug: str):
+def set_submission_review(slug: str, sub_id: str, review: dict):
+    index = _submissions_dir(slug) / "index.json"
+    items = _read_json(index)
+    for s in items:
+        if s["id"] == sub_id:
+            s["review"] = review
+    _write_json(index, items)
+
+
+def _latest_accepted(slug: str):
+    """Returns (entry, code) of the most recent accepted submission, or (None, None)."""
     for s in list_submissions(slug):
         if s["kind"] == "accepted":
-            return (_submissions_dir(slug) / f"{s['id']}.py").read_text(encoding="utf-8")
-    return None
+            return s, (_submissions_dir(slug) / f"{s['id']}.py").read_text(encoding="utf-8")
+    return None, None
 
 
 def run_user_code(slug: str, code: str, scope: str):
@@ -208,12 +218,17 @@ def run_user_code(slug: str, code: str, scope: str):
         tests = tests[: len(p["examples"])]
     res = run_tests(d / "solution.py", tests, p["function_name"], p["compare"])
     passed = sum(r["status"] == "pass" for r in res["results"])
-    res.update(passed=passed, total=len(tests), scope=scope, saved_submission=None)
+    res.update(passed=passed, total=len(tests), scope=scope, saved_submission=None, accepted_submission=None)
     if scope == "all" and passed == len(tests):
         if not p.get("solved"):
             p["solved"] = True
             _write_json(d / "problem.json", p)
-        # Keep every distinct accepted solution; skip if identical to the latest accepted one.
-        if _latest_accepted_code(slug) != code:
-            res["saved_submission"] = add_submission(slug, code, "accepted", passed=passed, total=len(tests))
+        # Keep every distinct accepted solution; reuse the latest one if the code is identical
+        # (so its saved review, if any, is reused too).
+        latest, latest_code = _latest_accepted(slug)
+        if latest_code == code:
+            res["accepted_submission"] = latest
+        else:
+            entry = add_submission(slug, code, "accepted", passed=passed, total=len(tests))
+            res["saved_submission"] = res["accepted_submission"] = entry
     return res

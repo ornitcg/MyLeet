@@ -10,7 +10,8 @@ the user solves it in the browser editor and runs the tests.
 - `python server.py` (or double-click `start.bat`) → http://127.0.0.1:8765
 - No dependencies beyond Python 3.12+ stdlib and the `claude` CLI (logged in).
   CodeMirror is loaded from cdnjs; without internet the editor falls back to a textarea.
-- Optional env var `MYLEET_MODEL` picks the model used for generation.
+- Optional env vars: `MYLEET_MODEL` (model for generation/review), `MYLEET_PORT` (default 8765;
+  use another port to test without stopping the user's running server).
 
 ## Layout
 - `server.py` — stdlib HTTP server + JSON API (`/api/problems`, `/api/problems/<slug>/run|save`,
@@ -18,6 +19,9 @@ the user solves it in the browser editor and runs the tests.
 - `myleet/generator.py` — prompt + JSON schema for `claude -p --json-schema`; validates every
   test against the reference solution and retries once with the mismatches as feedback.
   Runs Claude in a temp dir so this file's rules don't apply to reference generation.
+- `myleet/reviewer.py` — on request ("קבל חוות דעת"), reviews an accepted submission with
+  `claude -p`: complexity, short feedback, and a better approach in WORDS ONLY (no code;
+  a regex safety net strips code-like lines). Cached in the submission's `review` field.
 - `myleet/runner.py` — executed in a subprocess (`python -I`), calls the function per test,
   prints one JSON line per test (so partial results survive a timeout).
 - `myleet/core.py` — problem storage, test execution, timeout (10s per run).

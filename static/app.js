@@ -159,11 +159,7 @@ async function run(scope) {
       renderDescription(state.problem);
       loadList();
     }
-    if (res.saved_submission) {
-      addSubmissionToState(res.saved_submission);
-      $("resultsBody").insertAdjacentHTML("afterbegin",
-        `<div class="flash">✓ הפתרון נשמר בלשונית "הפתרונות שלי"</div>`);
-    }
+    if (res.saved_submission) addSubmissionToState(res.saved_submission);
   } catch (e) {
     $("resultsBody").innerHTML = `<pre class="error-box">${esc(e.message)}</pre>`;
   } finally {
@@ -196,8 +192,11 @@ function renderResults() {
   if (r.status === "skipped") detail += `<p class="muted">הטסט לא רץ כי טסט קודם חרג מזמן הריצה.</p>`;
   if (r.ms !== undefined) detail += `<div class="label">${r.ms} ms</div>`;
 
+  const review = res.accepted_submission ? reviewSlot(res.accepted_submission) : "";
   $("resultsBody").innerHTML = `
     <div class="verdict ${all ? "ok" : "bad"}">${verdict} <span class="muted small">${res.passed} / ${res.total} עברו</span></div>
+    ${res.saved_submission ? `<div class="flash">✓ הפתרון נשמר בלשונית "הפתרונות שלי"</div>` : ""}
+    ${review}
     <div class="chips">${chips}</div>
     <div class="detail">${detail}</div>`;
   $("resultsBody").querySelectorAll(".chip").forEach((c) =>
@@ -277,7 +276,8 @@ function renderSubmissions() {
     const open = state.openSub === s.id;
     const code = subsCache[`${state.problem.slug}/${s.id}`];
     const body = open ? `<div class="sub-body">${code === undefined ? `<p><span class="spinner"></span>טוען...</p>`
-      : `<pre>${esc(code)}</pre><button class="btn btn-sm" data-load="${s.id}">טען לעורך</button>`}</div>` : "";
+      : `<pre>${esc(code)}</pre><button class="btn btn-sm" data-load="${s.id}">טען לעורך</button>
+         ${s.kind === "accepted" ? reviewSlot(s) : ""}`}</div>` : "";
     return `<li class="sub"><button class="sub-head" data-id="${s.id}">${tag}
       <span class="sub-note" dir="auto">${esc(s.note || "")}</span>
       <span class="sub-time">${fmtTime(s.created)}</span></button>${body}</li>`;
@@ -322,6 +322,69 @@ async function saveSubmission() {
     $("saveState").textContent = "הפתרון נשמר ✓";
   } catch (e) {
     alert(`השמירה נכשלה: ${e.message}`);
+  }
+}
+
+// ---------- solution review ----------
+// Per submission id: {status: "idle"|"loading"|"done"|"error", data, error, started}
+const reviews = {};
+
+function reviewState(entry) {
+  if (!reviews[entry.id] && entry.review) reviews[entry.id] = { status: "done", data: entry.review };
+  return reviews[entry.id] || { status: "idle" };
+}
+
+function reviewSlot(entry) {
+  return `<div class="review-slot" data-review-slot="${entry.id}">${reviewInner(entry.id, reviewState(entry))}</div>`;
+}
+
+function reviewInner(id, st) {
+  if (st.status === "loading") {
+    const sec = Math.round((Date.now() - st.started) / 1000);
+    return `<p class="muted"><span class="spinner"></span>Claude בודק את הפתרון... (${sec} שניות)</p>`;
+  }
+  if (st.status === "error") {
+    return `<pre class="error-box">${esc(st.error)}</pre><button class="btn btn-sm" data-review="${id}">נסי שוב</button>`;
+  }
+  if (st.status === "done") return reviewCard(st.data);
+  return `<button class="btn btn-sm btn-review" data-review="${id}">קבל חוות דעת</button>`;
+}
+
+function reviewCard(r) {
+  const cx = (t, s) => `<span dir="ltr" class="cx">${esc(t || "?")}</span> זמן · <span dir="ltr" class="cx">${esc(s || "?")}</span> זיכרון`;
+  const better = r.has_better_approach
+    ? `<div class="better"><b>יש דרך יעילה יותר</b>
+         <p dir="auto">${esc(r.better_approach)}</p>
+         <div class="small muted">סיבוכיות הגישה: ${cx(r.better_time_complexity, r.better_space_complexity)}</div></div>`
+    : `<div class="optimal">✓ הפתרון שלך כבר יעיל ככל האפשר.</div>`;
+  return `<div class="review">
+      <div class="review-title">חוות דעת</div>
+      <div class="small">הסיבוכיות שלך: ${cx(r.time_complexity, r.space_complexity)}</div>
+      <p dir="auto">${esc(r.feedback)}</p>
+      ${better}
+    </div>`;
+}
+
+function refreshReviewSlots(id) {
+  document.querySelectorAll(`[data-review-slot="${id}"]`).forEach((el) => { el.innerHTML = reviewInner(id, reviews[id]); });
+}
+
+async function requestReview(id) {
+  if (!state.problem || reviews[id]?.status === "loading") return;
+  const slug = state.problem.slug;
+  reviews[id] = { status: "loading", started: Date.now() };
+  refreshReviewSlots(id);
+  const timer = setInterval(() => refreshReviewSlots(id), 1000);
+  try {
+    const data = await api(`/api/problems/${slug}/submissions/${id}/review`, {});
+    reviews[id] = { status: "done", data };
+    const entry = state.problem?.slug === slug && state.problem.submissions.find((s) => s.id === id);
+    if (entry) entry.review = data;
+  } catch (e) {
+    reviews[id] = { status: "error", error: e.message };
+  } finally {
+    clearInterval(timer);
+    refreshReviewSlots(id);
   }
 }
 
@@ -434,6 +497,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (head) toggleSubmission(head.dataset.id);
   });
   $("saveSubBtn").addEventListener("click", openSaveDialog);
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-review]");
+    if (btn) requestReview(btn.dataset.review);
+  });
   $("editTitleBtn").addEventListener("click", () => showTitleForm(true));
   $("problemTitle").addEventListener("dblclick", () => showTitleForm(true));
   $("titleForm").addEventListener("submit", saveTitle);

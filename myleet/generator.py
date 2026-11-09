@@ -88,25 +88,25 @@ class GenerationError(Exception):
     pass
 
 
-def _claude_cmd():
+def _claude_cmd(schema: dict):
     exe = shutil.which("claude")
     if not exe:
         raise GenerationError("The 'claude' CLI was not found on PATH. Install Claude Code and log in.")
     cmd = [exe, "-p", "--output-format", "json", "--tools", "", "--no-session-persistence",
-           "--json-schema", json.dumps(SCHEMA)]
+           "--json-schema", json.dumps(schema)]
     model = os.environ.get("MYLEET_MODEL")
     if model:
         cmd += ["--model", model]
     return cmd
 
 
-def _ask_claude(prompt: str) -> dict:
+def ask_claude(prompt: str, schema: dict = SCHEMA, timeout: int = CLAUDE_TIMEOUT_SEC) -> dict:
     # Run outside the project so this project's CLAUDE.md (which forbids writing solutions)
     # does not apply to the reference-solution generation.
     with tempfile.TemporaryDirectory() as tmp:
         try:
-            proc = subprocess.run(_claude_cmd(), input=prompt, capture_output=True, text=True,
-                                  encoding="utf-8", cwd=tmp, timeout=CLAUDE_TIMEOUT_SEC)
+            proc = subprocess.run(_claude_cmd(schema), input=prompt, capture_output=True, text=True,
+                                  encoding="utf-8", cwd=tmp, timeout=timeout)
         except subprocess.TimeoutExpired:
             raise GenerationError("Claude took too long to respond. Try again.")
     try:
@@ -144,7 +144,7 @@ def generate(description: str, title: str = "") -> str:
     title_hint = f"\nThe user wants this title: {title.strip()}\n" if title.strip() else ""
     feedback = ""
     for attempt in range(MAX_ATTEMPTS):
-        gen = _ask_claude(PROMPT.format(description=description, title_hint=title_hint, feedback=feedback))
+        gen = ask_claude(PROMPT.format(description=description, title_hint=title_hint, feedback=feedback))
         if title.strip():
             gen["title"] = title.strip()
         bad = _validate(gen)
